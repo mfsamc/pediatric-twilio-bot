@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard — Pediatric AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #e8f4f8 0%, #d4e8f0 100%); min-height: 100vh; padding: 30px; color: #1a2a3a; }
+        h1 { text-align: center; margin-bottom: 10px; font-size: 1.8rem; color: #0c7abf; }
+        .subtitle { text-align: center; color: #6b8299; margin-bottom: 30px; font-size: 0.9rem; }
+        .stats { display: flex; gap: 15px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
+        .stat-card { background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); text-align: center; min-width: 140px; }
+        .stat-card .num { font-size: 2rem; font-weight: 700; color: #0c7abf; }
+        .stat-card .label { font-size: 0.75rem; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; }
+        .patient-card { background: white; border-radius: 16px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 15px rgba(0,0,0,0.06); max-width: 800px; margin-left: auto; margin-right: auto; }
+        .patient-card h2 { color: #0c7abf; margin-bottom: 5px; }
+        .patient-card .meta { color: #6b8299; font-size: 0.85rem; margin-bottom: 15px; }
+        .encounter { border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px; }
+        .encounter h3 { color: #2a4a5a; font-size: 1rem; margin-bottom: 10px; }
+        .row { display: flex; gap: 8px; margin-bottom: 6px; font-size: 0.9rem; }
+        .row .label { font-weight: 600; color: #4a6a7a; min-width: 130px; }
+        .row .value { color: #1a2a3a; }
+        .problems { margin-top: 10px; }
+        .problem { padding: 6px 12px; border-radius: 8px; margin-bottom: 5px; font-size: 0.85rem; }
+        .problem.provisional { background: #fff3e0; border-left: 3px solid #ff9800; }
+        .problem.differential { background: #e3f2fd; border-left: 3px solid #2196f3; }
+        .problem.active { background: #fce4ec; border-left: 3px solid #f44336; }
+        .empty { text-align: center; color: #6b8299; padding: 60px; font-size: 1.1rem; }
+        .refresh-btn { display: block; margin: 0 auto 20px; padding: 10px 25px; background: #0c7abf; color: white; border: none; border-radius: 8px; font-family: inherit; font-size: 0.9rem; cursor: pointer; }
+        .refresh-btn:hover { background: #0a6aa8; }
+    </style>
+</head>
+<body>
+    <h1>🩺 Clinical Dashboard</h1>
+    <p class="subtitle">Pediatric AI WhatsApp Bot — Doctor's View</p>
+    <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+    <div class="stats" id="stats"></div>
+    <div id="content"><div class="empty">Loading...</div></div>
+
+    <script>
+    async function loadData() {
+        try {
+            const res = await fetch('/api/patients');
+            const db = await res.json();
+            const patients = Object.values(db.patients);
+            
+            // Stats
+            const totalEncounters = patients.reduce((s, p) => s + (p.encounters?.length || 0), 0);
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card"><div class="num">${patients.length}</div><div class="label">Patients</div></div>
+                <div class="stat-card"><div class="num">${totalEncounters}</div><div class="label">Encounters</div></div>
+            `;
+
+            if (patients.length === 0) {
+                document.getElementById('content').innerHTML = '<div class="empty">No completed patient encounters yet.<br>Patients need to complete the full WhatsApp intake first.</div>';
+                return;
+            }
+
+            let html = '';
+            patients.forEach(pt => {
+                html += `<div class="patient-card">
+                    <h2>${pt.demographics?.name || 'Unknown'}</h2>
+                    <div class="meta">ID: ${pt.id} | Phone: ${pt.phone} | Encounters: ${pt.encounters?.length || 0}</div>`;
+                
+                (pt.encounters || []).forEach((enc, i) => {
+                    const d = enc.data;
+                    html += `<div class="encounter">
+                        <h3>Encounter ${i+1} — ${new Date(enc.date).toLocaleDateString()} (${enc.messageCount} messages)</h3>
+                        <div class="row"><span class="label">Age:</span><span class="value">${d.demographics?.age || '-'}</span></div>
+                        <div class="row"><span class="label">Gender:</span><span class="value">${d.demographics?.gender || '-'}</span></div>
+                        <div class="row"><span class="label">Residence:</span><span class="value">${d.demographics?.residence || '-'}</span></div>
+                        <div class="row"><span class="label">Complaints:</span><span class="value">${(d.complaints || []).join(', ')}</span></div>
+                        <div class="row"><span class="label">HPI Details:</span><span class="value">${d.hpi?.details || '-'}</span></div>
+                        <div class="row"><span class="label">Impact:</span><span class="value">${d.hpi?.impact || '-'}</span></div>
+                        <div class="row"><span class="label">Systemic:</span><span class="value">${d.hpi?.systemic || '-'}</span></div>
+                        <div class="row"><span class="label">Birth/Neonatal:</span><span class="value">${d.background?.birth || '-'}</span></div>
+                        <div class="row"><span class="label">Diet:</span><span class="value">${d.background?.diet || '-'}</span></div>
+                        <div class="row"><span class="label">Immunization:</span><span class="value">${d.background?.immunization || '-'}</span></div>
+                        <div class="row"><span class="label">Development:</span><span class="value">${d.background?.development || '-'}</span></div>
+                        <div class="row"><span class="label">Family/Social:</span><span class="value">${d.background?.family || '-'}</span></div>
+                        <div class="problems">
+                            ${(d.problems || []).map(p => `<div class="problem ${p.type}">${p.text}</div>`).join('')}
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+            });
+            document.getElementById('content').innerHTML = html;
+        } catch(e) {
+            document.getElementById('content').innerHTML = `<div class="empty">Error loading data: ${e.message}</div>`;
+        }
+    }
+    loadData();
+    </script>
+</body>
+</html>
