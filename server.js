@@ -225,8 +225,9 @@ async function processMessage(from, messageText) {
 
 // --- Webhook Receiver (Twilio sends POST with form data) ---
 app.post('/webhook', async (req, res) => {
-    // Twilio expects a valid TwiML response or a 200 OK. We'll send a 200 immediately.
-    res.sendStatus(200);
+    // Twilio expects a valid empty TwiML response. We'll send it immediately.
+    res.type('text/xml');
+    res.status(200).send('<Response></Response>');
 
     try {
         const from = req.body.From; // e.g. "whatsapp:+1234567890"
